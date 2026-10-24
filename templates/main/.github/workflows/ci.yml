@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: {{licence}}
+# The licence check (REUSE) and a sign-off (DCO) on every commit of a pull request. Add the project's own jobs (format,
+# lints, tests) here. Actions are pinned by commit, with the version as a comment.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  licences:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: fsfe/reuse-action@9a55738c6490d015afe69ad187520395d2b7a1fa # v6.0.0
+
+  sign-off:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Every commit carries a Signed-off-by line (DCO)
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          missing=$(git rev-list --no-merges "$BASE..$HEAD" | while read -r c; do
+            git log -1 --format=%B "$c" | grep -q '^Signed-off-by: ' || echo "$c"; done)
+          if [ -n "$missing" ]; then echo "Commits without sign-off (git commit -s):"; echo "$missing"; exit 1; fi

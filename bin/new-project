@@ -1,0 +1,231 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-or-later
+"""Writes the working folder of a new falkOSS project from templates/ (docs/setup.md, step 5).
+
+    bin/new-project <name> --tagline "One line in English" [--app] [--eu] [--de] [--whitepaper]
+                    [--licence MIT] [--doc-licence CC-BY-SA-4.0] [--accent "#5AA9E6"] [--port 8014]
+                    [--root DIR] [--no-commit]
+
+Writes <root>/<name>/ (default root: the folder that holds falkoss/) with CLAUDE.md, .claude/launch.json and the
+repositories .github, website, <name> and – with --whitepaper – whitepaper; generates the provisional brand kit and
+copies its web assets; gives every repository `git init -b main`, its remote and a first signed-off commit; and
+creates ~/.<name>/developer/agent.env with an empty GITHUB_TOKEN (mode 600). Never overwrites, never pushes.
+
+Templates use {{key}} for values and {{#whitepaper}} … {{/whitepaper}} ({{^whitepaper}} for the opposite) on lines
+of their own; a {{key}} in a file or folder name is replaced too.
+"""
+import argparse, datetime, glob, json, os, re, shutil, subprocess, sys
+
+STARTERPACK = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TEMPLATES = os.path.join(STARTERPACK, "templates")
+PUBLISHER = "falkOSS – Falcon Lake Open Source Software gUG (haftungsbeschränkt) i. G."
+LICENCES = ("AGPL-3.0-or-later", "MIT")
+DOC_LICENCES = {"CC-BY-4.0": "CC BY 4.0", "CC-BY-SA-4.0": "CC BY-SA 4.0"}
+# repository folder in the working folder ← template folder
+REPOS = {".github": "dotgithub", "website": "website", "{name}": "main", "whitepaper": "whitepaper"}
+
+
+# --- colours ---------------------------------------------------------------------------------------------------------
+
+def rgb(h):
+    return [int(h[i:i + 2], 16) for i in (1, 3, 5)]
+
+
+def hexa(c):
+    return "#" + "".join(f"{max(0, min(255, round(v))):02X}" for v in c)
+
+
+def mix(a, b, t):
+    return hexa([x + (y - x) * t for x, y in zip(rgb(a), rgb(b))])
+
+
+def contrast(a, b):
+    def lum(h):
+        c = [v / 255 for v in rgb(h)]
+        c = [v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4 for v in c]
+        return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+    hi, lo = sorted((lum(a), lum(b)), reverse=True)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+def accent_on_light(accent):
+    """The accent, darkened until it reads on white (WCAG AA, 4.5:1)."""
+    t = 0.0
+    while contrast(mix(accent, "#000000", t), "#FFFFFF") < 4.5 and t < 1:
+        t += 0.05
+    return mix(accent, "#000000", t)
+
+
+# --- templates -------------------------------------------------------------------------------------------------------
+
+BLOCK = re.compile(r"^\{\{([#^])(\w+)\}\}\n(.*?)^\{\{/\2\}\}\n", re.M | re.S)
+VALUE = re.compile(r"\{\{(\w+)\}\}")
+
+
+def fill(text, values, flags):
+    text = BLOCK.sub(lambda m: m.group(3) if flags.get(m.group(2), False) == (m.group(1) == "#") else "", text)
+    unknown = sorted({k for k in VALUE.findall(text) if k not in values})
+    if unknown:
+        raise SystemExit(f"template uses unknown values: {', '.join(unknown)}")
+    return VALUE.sub(lambda m: str(values[m.group(1)]), text)
+
+
+def copy_tree(src, dst, values, flags):
+    for folder, _, files in os.walk(src):
+        rel = os.path.relpath(folder, src)
+        for f in files:
+            if f == ".DS_Store":
+                continue
+            s = os.path.join(folder, f)
+            d = os.path.join(dst, VALUE.sub(lambda m: values[m.group(1)], os.path.normpath(os.path.join(rel, f))))
+            os.makedirs(os.path.dirname(d), exist_ok=True)
+            try:
+                text = open(s, encoding="utf-8").read()
+            except UnicodeDecodeError:
+                shutil.copyfile(s, d)
+            else:
+                with open(d, "w", encoding="utf-8") as out:
+                    out.write(fill(text, values, flags))
+            shutil.copymode(s, d)
+
+
+def licence(dst, spdx, as_licence_file=False):
+    os.makedirs(os.path.join(dst, "LICENSES"), exist_ok=True)
+    src = os.path.join(TEMPLATES, "LICENSES", f"{spdx}.txt")
+    shutil.copyfile(src, os.path.join(dst, "LICENSES", f"{spdx}.txt"))
+    if as_licence_file:
+        shutil.copyfile(src, os.path.join(dst, "LICENSE"))
+
+
+# --- steps -----------------------------------------------------------------------------------------------------------
+
+def next_port(root):
+    """One above the highest preview port in the sibling working folders (8010 falkoss, 8011 labs, 8012 kernoid …)."""
+    ports = [8012]
+    for path in glob.glob(os.path.join(root, "*", ".claude", "launch.json")):
+        try:
+            ports += [c.get("port", 0) for c in json.load(open(path)).get("configurations", [])
+                      if 8000 <= c.get("port", 0) < 9000]
+        except (OSError, ValueError):
+            pass
+    return max(ports) + 1
+
+
+def brand(work, name):
+    main = os.path.join(work, name)
+    if not shutil.which("rsvg-convert"):
+        print("  ! rsvg-convert missing (Homebrew: librsvg) – brand kit not generated; run brand/generate.py later")
+        return
+    subprocess.run([sys.executable, "-B", os.path.join(main, "brand", "generate.py")], check=True,
+                   stdout=subprocess.DEVNULL)
+    web, svg = os.path.join(main, "brand", "web"), os.path.join(main, "brand", "svg")
+    for f in os.listdir(web):
+        shutil.copy(os.path.join(web, f), os.path.join(work, "website", f))
+    for f, to in [(f"{name}-lockup-on-dark.svg", "website/assets"), (f"{name}-mark-on-dark.svg", "website/assets"),
+                  (f"{name}-lockup-on-dark.svg", ".github/profile/assets"),
+                  (f"{name}-lockup-on-light.svg", ".github/profile/assets")]:
+        os.makedirs(os.path.join(work, to), exist_ok=True)
+        shutil.copy(os.path.join(svg, f), os.path.join(work, to, f))
+
+
+def git(repo, name, folder, commit):
+    run = lambda *a: subprocess.run(["git", "-C", repo, *a], check=True, stdout=subprocess.DEVNULL)
+    run("init", "-q", "-b", "main")
+    run("remote", "add", "origin", f"https://github.com/{name}/{folder}.git")
+    if commit:
+        run("add", "-A")
+        run("commit", "-q", "-s", "-m", f"Start {name}/{folder} from falkoss/starterpack")
+
+
+def token_folder(home, name):
+    dev = os.path.join(home, f".{name}", "developer")
+    env = os.path.join(dev, "agent.env")
+    os.makedirs(dev, mode=0o700, exist_ok=True)
+    os.chmod(dev, 0o700)
+    if os.path.exists(env):
+        return f"{env} exists – left as it is"
+    fd = os.open(env, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "w") as f:
+        f.write("GITHUB_TOKEN=\n")
+    return f"{env} (empty – paste the token after GITHUB_TOKEN=)"
+
+
+def main():
+    p = argparse.ArgumentParser(description="Write the working folder of a new falkOSS project.")
+    p.add_argument("name")
+    p.add_argument("--tagline", required=True, help="one line in English, e.g. 'Free accounting for everyone'")
+    p.add_argument("--app", action="store_true", help="an app: .app is the main domain")
+    p.add_argument("--eu", action="store_true", help="EU-specific: .eu is required")
+    p.add_argument("--de", action="store_true", help="Germany-specific: .de is required")
+    p.add_argument("--whitepaper", action="store_true", help="also the whitepaper repository")
+    p.add_argument("--licence", choices=LICENCES, default=LICENCES[0], help="of the main repository")
+    p.add_argument("--doc-licence", choices=DOC_LICENCES, default="CC-BY-4.0", help="of the whitepaper text")
+    p.add_argument("--accent", default="#5AA9E6", help="the one accent colour of the provisional brand (#RRGGBB)")
+    p.add_argument("--port", type=int, help="website preview port (default: next free one)")
+    p.add_argument("--root", default=os.path.dirname(os.path.dirname(STARTERPACK)), help="where the working folder goes")
+    p.add_argument("--home", default=os.path.expanduser("~"), help=argparse.SUPPRESS)
+    p.add_argument("--no-commit", action="store_true", help="init the repositories without a first commit")
+    a = p.parse_args()
+
+    name = a.name
+    if not re.fullmatch(r"[a-z][a-z0-9-]{1,37}[a-z0-9]", name):
+        raise SystemExit("the name: lowercase letters, digits and inner hyphens, 3–39 characters")
+    if re.search(r'[<>&"\\]', a.tagline):
+        raise SystemExit('the tagline must not contain < > & " or a backslash')
+    if not re.fullmatch(r"#[0-9A-Fa-f]{6}", a.accent):
+        raise SystemExit("--accent: #RRGGBB")
+    work = os.path.join(os.path.abspath(a.root), name)
+    if os.path.exists(work):
+        raise SystemExit(f"{work} exists – starterpack never overwrites")
+
+    today = datetime.date.today()
+    accent = a.accent.upper()
+    accent_dark = accent_on_light(accent)
+    tlds = ["org", "dev"] + [t for t, on in (("app", a.app), ("eu", a.eu), ("de", a.de)) if on]
+    values = dict(
+        name=name, tagline=a.tagline.rstrip("."),
+        tagline_lower=a.tagline.rstrip(".") if a.tagline[1:2].isupper() else a.tagline[:1].lower() + a.tagline[1:].rstrip("."),
+        year=today.year, date=today.isoformat(), expires=today.replace(year=today.year + 1).isoformat(),
+        publisher=PUBLISHER, licence=a.licence, doc_licence=a.doc_licence, doc_licence_label=DOC_LICENCES[a.doc_licence],
+        main_domain=f"{name}.app" if a.app else f"{name}.org", docs_domain=f"{name}.dev",
+        required_domains=", ".join(f".{t}" for t in tlds),
+        check_flags="".join(f" --{t}" for t in ("app", "eu", "de") if getattr(a, t)),
+        port=a.port or next_port(os.path.abspath(a.root)),
+        night="#0D1117", panel="#12171E", line="#1C232B", paper="#E6EDF3", ink="#14202B",
+        accent=accent, accent_dark=accent_dark, note=mix(accent_dark, "#FFFFFF", 0.92),
+    )
+    flags = dict(whitepaper=a.whitepaper)
+
+    print(f"# {name} → {work}")
+    copy_tree(os.path.join(TEMPLATES, "workspace"), work, values, flags)
+    repos = [r.format(name=name) for r in REPOS if r != "whitepaper" or a.whitepaper]
+    for folder in repos:
+        copy_tree(os.path.join(TEMPLATES, REPOS["{name}" if folder == name else folder]),
+                  os.path.join(work, folder), values, flags)
+    licence(os.path.join(work, "website"), "AGPL-3.0-or-later", as_licence_file=True)
+    shutil.rmtree(os.path.join(work, "website", "LICENSES"))   # websites carry only LICENSE, like the others
+    licence(os.path.join(work, name), a.licence, as_licence_file=True)
+    if a.whitepaper:
+        wp = os.path.join(work, "whitepaper")
+        for spdx in ("AGPL-3.0-or-later", a.doc_licence, "OFL-1.1"):
+            licence(wp, spdx)
+        shutil.copytree(os.path.join(TEMPLATES, "fonts"), os.path.join(wp, "template", "fonts"))
+    brand(work, name)
+    for folder in repos:
+        git(os.path.join(work, folder), name, folder, not a.no_commit)
+        print(f"  {folder:12} git: main, origin https://github.com/{name}/{folder}.git"
+              + ("" if a.no_commit else ", first commit (signed off)"))
+    print("  token       " + token_folder(a.home, name))
+
+    print(f"""
+Next (docs/setup.md):
+  - create github.com/{name} and the repositories {', '.join(repos)} – private, empty
+  - fine-grained token (Contents, Workflows, Actions: read and write) into ~/.{name}/developer/agent.env
+  - push each repository after the maintainer's OK (command in {name}/CLAUDE.md)
+  - Pages for website, domains {values['required_domains']} → {values['main_domain']}
+  - replace the provisional brand in {name}/brand/generate.py""" + ("""
+  - build the whitepaper: whitepaper/build.sh (pandoc + typst or nix), commit .typ and .pdf""" if a.whitepaper else ""))
+
+
+if __name__ == "__main__":
+    main()

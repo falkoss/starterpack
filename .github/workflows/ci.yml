@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# The licence check (REUSE), a sign-off (DCO) on every commit of a pull request, and a smoke test: new-project writes
+# a whole working folder, whose main repository must be REUSE clean too – in _ci/, because the REUSE action runs in
+# Docker and sees only the workspace. Actions are pinned by commit, with the version as a comment.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  licences:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: fsfe/reuse-action@9a55738c6490d015afe69ad187520395d2b7a1fa # v6.0.0
+
+  new-project:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: rsvg-convert
+        run: sudo apt-get update && sudo apt-get install -y librsvg2-bin
+      - name: Write a project
+        run: |
+          git config --global user.name "starterpack CI"
+          git config --global user.email "ci@invalid"
+          bin/new-project packtest --tagline "A project written by CI" --app --whitepaper \
+            --root _ci --home "$RUNNER_TEMP/home"
+          test -f _ci/packtest/website/favicon.ico
+          test "$(stat -c %a "$RUNNER_TEMP/home/.packtest/developer/agent.env")" = 600
+      - uses: fsfe/reuse-action@9a55738c6490d015afe69ad187520395d2b7a1fa # v6.0.0
+        with:
+          args: --root _ci/packtest/packtest lint
+
+  sign-off:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Every commit carries a Signed-off-by line (DCO)
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          missing=$(git rev-list --no-merges "$BASE..$HEAD" | while read -r c; do
+            git log -1 --format=%B "$c" | grep -q '^Signed-off-by: ' || echo "$c"; done)
+          if [ -n "$missing" ]; then echo "Commits without sign-off (git commit -s):"; echo "$missing"; exit 1; fi

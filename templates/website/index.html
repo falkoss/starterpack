@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{name}} – {{tagline_lower}}</title>
+  <meta name="description" content="{{name}}: {{tagline_lower}}. Free software, a falkOSS project, in early development.">
+  <meta name="theme-color" content="{{night}}">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="{{name}}">
+  <meta property="og:title" content="{{name}} – {{tagline_lower}}">
+  <meta property="og:description" content="{{tagline}} – free software, everything included.">
+  <meta property="og:image" content="social.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <a href="./" aria-label="{{name}} home"><img src="assets/{{name}}-lockup-on-dark.svg" alt="{{name}}"></a>
+      <nav>
+        <a href="#what">what</a>
+        <a href="#involved">get involved</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="hero">
+      <div class="wrap">
+        <div>
+          <p class="prompt"><b>~$</b> {{name}} --about</p>
+          <h1>{{tagline}}<span class="cursor"></span></h1>
+          <!-- OPEN: two or three sentences – what it is, for whom, why free. -->
+          <p><strong>{{name}}</strong> is free software – everything included, no telemetry. It is at its beginning:
+            there is nothing to install yet.</p>
+          <div class="buttons">
+{{#whitepaper}}
+            <a class="button primary" href="https://github.com/{{name}}/whitepaper">./whitepaper</a>
+{{/whitepaper}}
+            <a class="button" href="https://github.com/{{name}}">github.com/{{name}}</a>
+          </div>
+        </div>
+        <img class="mark" src="assets/{{name}}-mark-on-dark.svg" alt="" width="300" height="300">
+      </div>
+    </div>
+
+    <section id="what">
+      <div class="wrap">
+        <h2>what it is</h2>
+        <!-- OPEN: the four things that make the project – replace these cells. -->
+        <div class="grid">
+          <div class="cell"><h3>free software</h3><p>{{licence}} – an SPDX header in every file, contributions under the <a href="https://developercertificate.org">DCO</a>.</p></div>
+          <div class="cell"><h3>everything included</h3><p>One edition, every feature free. No paid tiers, licence keys or unlocks.</p></div>
+          <div class="cell"><h3>no telemetry</h3><p>Nothing phones home – only connections that are needed or that you start yourself.</p></div>
+          <div class="cell"><h3>in the open</h3><p>Issues, plans, reviews and decisions happen in public.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="involved">
+      <div class="wrap">
+        <h2>get involved</h2>
+        <div class="grid">
+          <div class="cell"><h3>developers</h3><p>Issues and pull requests are welcome on <a href="https://github.com/{{name}}">GitHub</a>, signed off under the <a href="https://developercertificate.org">DCO</a>.</p></div>
+          <div class="cell"><h3>contact</h3><p>Write to <a href="mailto:support@falkoss.org">support@falkoss.org</a> – {{name}} is published by <a href="https://falkoss.org">falkOSS</a>.</p></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>© {{year}} {{publisher}} · <a href="https://falkoss.org">a falkOSS project</a></span>
+      <span><a href="https://falkoss.org/impressum.html">impressum</a> · <a href="https://falkoss.org/datenschutz.html">datenschutz</a></span>
+    </div>
+  </footer>
+</body>
+</html>

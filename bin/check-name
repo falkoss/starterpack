@@ -1,0 +1,171 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-or-later
+"""Checks whether a name is free for a falkOSS project (docs/naming.md).
+
+    bin/check-name <name> [--app] [--eu] [--de] [--extra speza.do …]
+
+GitHub organisation: the public API (404 = free, or hidden/suspended/reserved – only creating it confirms). Domains:
+RDAP via rdap.org, whois where RDAP has no answer. For a registered .com, the page title is shown to help judge
+whether a company or project uses it. Package registries: crates.io, npm, PyPI. Trademark registers cannot be queried
+reliably – their search pages are printed for the manual check. Results are hints, not legal advice.
+"""
+import argparse, json, re, subprocess, sys, urllib.error, urllib.request
+
+UA = "falkoss-starterpack-check-name (https://github.com/falkoss/starterpack)"
+FREE, TAKEN, UNKNOWN = "free", "taken", "unknown"
+
+
+def get(url, timeout=10):
+    """(status, body) – status 0 if the request failed."""
+    req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/json, text/html"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return r.status, r.read(200_000).decode("utf-8", "replace")
+    except urllib.error.HTTPError as e:
+        return e.code, ""
+    except Exception:
+        return 0, ""
+
+
+def github(name):
+    status, body = get(f"https://api.github.com/users/{name}")
+    if status == 404:
+        return FREE, "or hidden – confirmed only by creating it"
+    if status == 200:
+        kind = json.loads(body).get("type", "account")
+        return TAKEN, f"{kind.lower()} https://github.com/{name}"
+    return UNKNOWN, f"GitHub API answered {status or 'nothing'} (rate limit?)"
+
+
+# whois answers that mean "not registered" (DENIC: "Status: free", EURid: "Status: AVAILABLE", others vary)
+WHOIS_FREE = re.compile(r"^\s*(no match|not found|no data found|no entries found|status:\s*(free|available)|"
+                        r"domain not found|the queried object does not exist|%+ ?no match)", re.I | re.M)
+_RDAP = None
+
+
+def rdap_server(tld):
+    """The registry's RDAP base URL from the IANA bootstrap file, or None (e.g. .de and .eu have none there)."""
+    global _RDAP
+    if _RDAP is None:
+        status, body = get("https://data.iana.org/rdap/dns.json")
+        _RDAP = {t: urls[0] for tlds, urls in json.loads(body)["services"] for t in tlds} if status == 200 else {}
+    return _RDAP.get(tld)
+
+
+def run_whois(*args):
+    try:
+        return subprocess.run(["whois", *args], capture_output=True, text=True, timeout=20).stdout
+    except Exception:
+        return ""
+
+
+def whois(domain):
+    """Asks the registry's own whois server (named by IANA), not the system default – that may stop at IANA."""
+    tld = domain.rsplit(".", 1)[1]
+    m = re.search(r"^(?:refer|whois):\s*(\S+)", run_whois("-h", "whois.iana.org", tld), re.M)
+    out = run_whois("-h", m.group(1), domain) if m else run_whois(domain)
+    if not out:
+        return UNKNOWN, "whois failed – check by hand"
+    if WHOIS_FREE.search(out):
+        return FREE, "whois"
+    if re.search(rf"^\s*(domain name|domain):\s*{re.escape(domain)}", out, re.I | re.M):
+        return TAKEN, "whois"
+    return UNKNOWN, "whois unclear – check by hand"
+
+
+def domain(d):
+    server = rdap_server(d.rsplit(".", 1)[1])
+    if server:
+        status, _ = get(f"{server.rstrip('/')}/domain/{d}")
+        if status == 404:
+            return FREE, "RDAP"
+        if status == 200:
+            return TAKEN, "RDAP"
+    return whois(d)
+
+
+def title(d):
+    for url in (f"https://{d}", f"http://{d}"):
+        status, body = get(url, timeout=6)
+        if status:
+            m = re.search(r"<title[^>]*>(.*?)</title>", body, re.I | re.S)
+            t = re.sub(r"\s+", " ", m.group(1)).strip()[:80] if m else "(no title)"
+            return f"{status} {t}"
+    return "no website answers"
+
+
+def package(name):
+    checks = {
+        "crates.io": f"https://crates.io/api/v1/crates/{name}",
+        "npm": f"https://registry.npmjs.org/{name}",
+        "PyPI": f"https://pypi.org/pypi/{name}/json",
+    }
+    for registry, url in checks.items():
+        status, _ = get(url)
+        yield registry, {404: FREE, 200: TAKEN}.get(status, UNKNOWN)
+
+
+def main():
+    p = argparse.ArgumentParser(description="Check a name for a falkOSS project.")
+    p.add_argument("name")
+    p.add_argument("--app", action="store_true", help="the project is an app: .app is required")
+    p.add_argument("--eu", action="store_true", help="the project is EU-specific: .eu is required")
+    p.add_argument("--de", action="store_true", help="the project is Germany-specific: .de is required")
+    p.add_argument("--extra", nargs="*", default=[], metavar="DOMAIN", help="more domains, e.g. domain hacks")
+    a = p.parse_args()
+    name = a.name.lower()
+
+    print(f"# {name}\n")
+    problems = []
+    if not re.fullmatch(r"[a-z][a-z0-9-]{1,37}[a-z0-9]", name):
+        problems.append("only lowercase letters, digits and inner hyphens, 3–39 characters")
+    if "-" in name:
+        problems.append("a hyphen costs clarity in domains and handles – only if nothing else works")
+    for p_ in problems:
+        print(f"  ! {p_}")
+
+    blockers = []
+    status, note = github(name)
+    print(f"GitHub organisation   {status:8} {note}")
+    if status == TAKEN:
+        blockers.append("GitHub")
+
+    print("\nDomains")
+    tlds = [("org", True), ("dev", True), ("app", a.app), ("eu", a.eu), ("de", a.de), ("com", False)]
+    for tld, required in tlds:
+        d = f"{name}.{tld}"
+        status, how = domain(d)
+        need = "required" if required else "optional"
+        extra = f" – {title(d)}" if tld == "com" and status == TAKEN else ""
+        print(f"  {d:28} {status:8} {need:9} ({how}){extra}")
+        if required and status == TAKEN:
+            blockers.append(d)
+    for d in a.extra:
+        status, how = domain(d)
+        print(f"  {d:28} {status:8} {'extra':9} ({how})")
+
+    print("\nPackage registries (nice to have)")
+    for registry, status in package(name):
+        print(f"  {registry:28} {status}")
+
+    print("\nTrademark and web – by hand, classes 9 and 42, also close variants (docs/naming.md):")
+    for label, url in [
+        ("DPMA", "https://register.dpma.de/DPMAregister/marke/einsteiger"),
+        ("EUIPO", "https://euipo.europa.eu/eSearch/"),
+        ("TMview", "https://www.tmdn.org/tmview/"),
+        ("WIPO", "https://branddb.wipo.int/"),
+        ("GitHub", f"https://github.com/search?q={name}&type=repositories"),
+        ("Web", f"https://duckduckgo.com/?q=%22{name}%22+software"),
+    ]:
+        print(f"  {label:7} {url}")
+
+    print()
+    if blockers:
+        print("NOT FREE: " + ", ".join(blockers))
+        return 1
+    print("No blocker found in the automated checks – do the manual ones and write the result down with its date.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
