@@ -31,9 +31,9 @@ the organisation's name (`<name>/<name>`).
 | **.org** | **required** | main domain of the website (unless .app is) |
 | **.dev** | **required** | documentation (GitHub Pages from the main repository's `docs/`), later developer services |
 | **.app** | required if the project is an app | then the main domain of the website (omaflake.app, notenwart.app) |
-| **.eu** | required if the project is EU-specific | redirect, or main domain for a European audience |
-| **.de** | required if the project is Germany-specific | redirect; only falkOSS itself is a German company with a .de |
-| **.com** | nice to have – often only parked | redirect |
+| **.eu** | only if it fits the topic – data protection, digital sovereignty (kernoid) | redirect, or main domain for a European audience |
+| **.de** | only if Germany matters – a German company (falkOSS), a German name or German pilot users (notenwart) | redirect |
+| **.com** | nice to have – if it is cheap or only parked | redirect |
 
 - All domains other than the main one **redirect with 301** to it (path kept).
 - **Domain hacks** (notenw.art, speza.do, kerno.id, omafla.ke) are welcome as short URLs and redirects – never as the
