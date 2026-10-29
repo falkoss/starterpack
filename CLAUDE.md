@@ -20,7 +20,8 @@ is German, everything else English) and the shared workflows in `.github/workflo
   project, pinned by commit: change them compatibly, and only together with the templates that call them.
 - `templates/rust-app/` holds generated files (`Cargo.lock`, `web/pnpm-lock.yaml`, `api/openapi.json`,
   `web/src/lib/api-types.ts`): after changing the code or a dependency, write a project, regenerate them there and
-  carry them back with the name replaced by `{{name}}` – CI fails otherwise.
+  carry them back with the name replaced by `{{name}}` – CI fails otherwise. Use a name that occurs nowhere else
+  (`qqzx`, not `rapp`, which is in `sync_wrapper`); `new-project` sorts `Cargo.lock` again for the real name.
 - Test after every change: `bin/new-project <test> --tagline … --whitepaper --rust-app --root <tmp> --home <tmp>` –
   CI does the same, runs REUSE and Jekyll on the result and the project's own Rust and web checks.
 - Nothing about one project's content belongs here (no Nix, no accounting, no mail); keep templates general.
