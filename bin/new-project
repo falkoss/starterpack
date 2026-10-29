@@ -263,8 +263,8 @@ def main():
         sort_cargo_lock(os.path.join(work, name, "Cargo.lock"))
     holder = f"{today.year} {PUBLISHER} and the {name} contributors"
     licence(os.path.join(work, "website"), "AGPL-3.0-or-later", as_licence_file=True)
-    shutil.rmtree(os.path.join(work, "website", "LICENSES"))   # websites carry only LICENSE, like the others
-    for spdx in ("CC-BY-4.0", "CC-BY-ND-4.0"):
+    licence(os.path.join(work, "website"), "CC-BY-ND-4.0")    # the copies of the brand's artwork
+    for spdx in ("CC-BY-4.0", "CC-BY-ND-4.0", "MIT"):
         licence(os.path.join(work, ".github"), spdx)
     licence(os.path.join(work, "brand"), "MIT", as_licence_file=True, holder=holder)
     licence(os.path.join(work, "brand"), "CC-BY-ND-4.0")

@@ -3,9 +3,10 @@
 # copies of the brand's artwork from {{name}}/brand under its licence.
 version = 1
 
+# Files with an SPDX header (the workflow, MIT) keep it.
 [[annotations]]
 path = "**"
-precedence = "aggregate"
+precedence = "closest"
 SPDX-FileCopyrightText = "{{publisher}} and the {{name}} contributors"
 SPDX-License-Identifier = "CC-BY-4.0"
 

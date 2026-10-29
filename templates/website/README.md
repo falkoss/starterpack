@@ -28,4 +28,5 @@ then, `404.html` uses root paths that only resolve under a custom domain.
 
 ## Licence
 
-The site's code is **AGPL-3.0-or-later** (`LICENSE`); the brand (name, logo, marks) is not covered by it.
+The site's code is **AGPL-3.0-or-later** (`LICENSE`); the brand's artwork (favicons, icons, `assets/`) is copied from
+`{{name}}/brand` under CC BY-ND 4.0, and the brand itself (name, logo, marks) is not covered by any licence.
