@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: {{licence}}
+// Just the Docs' dark scheme in {{name}}'s colours ({{name}}/brand: night, paper, the one accent)
+@import "./color_schemes/dark";
+
+$body-background-color: {{night}};
+$sidebar-color: {{panel}};
+$border-color: {{line}};
+$body-text-color: {{paper}};
+$body-heading-color: {{paper}};
+$link-color: {{accent}};
+$btn-primary-color: {{accent_dark}};
+$base-button-color: {{panel}};
+$code-background-color: {{panel}};
+$feedback-color: {{panel}};

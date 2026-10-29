@@ -11,7 +11,8 @@ GitHub-Organisation `{{name}}`. Repo-spezifisches Wissen gehört in die `CLAUDE.
 
 | Ordner | Repo | Inhalt |
 |---|---|---|
-| `{{name}}/` | `{{name}}/{{name}}` | Software und Brand-Kit (`brand/`, vorläufig) – **{{licence}}**. Regeln: `{{name}}/CLAUDE.md` |
+| `{{name}}/` | `{{name}}/{{name}}` | Software und Doku ({{docs_domain}}, `docs/`) – **{{licence}}**. Regeln: `{{name}}/CLAUDE.md` |
+| `brand/` | `{{name}}/brand` | Brand-Kit (vorläufig) – Grafik **CC BY-ND 4.0**, Generator MIT; Kopien in den anderen Repos |
 {{#whitepaper}}
 | `whitepaper/` | `{{name}}/whitepaper` | Whitepaper (Markdown → Typst → PDF, `build.sh`), Text **{{doc_licence_label}}** |
 {{/whitepaper}}

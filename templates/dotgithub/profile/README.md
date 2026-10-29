@@ -30,7 +30,8 @@
 
 | Repository | What |
 |---|---|
-| [{{name}}](https://github.com/{{name}}/{{name}}) | the software and the brand kit |
+| [{{name}}](https://github.com/{{name}}/{{name}}) | the software and its documentation ([{{docs_domain}}](https://{{docs_domain}})) |
+| [brand](https://github.com/{{name}}/brand) | the brand kit – logo, colours, icons |
 {{#whitepaper}}
 | [whitepaper](https://github.com/{{name}}/whitepaper) | the whitepaper – Markdown, set to PDF with Typst |
 {{/whitepaper}}

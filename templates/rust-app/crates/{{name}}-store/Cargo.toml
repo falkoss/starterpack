@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: {{licence}}
+[package]
+name = "{{name}}-store"
+description = "Where the data of {{name}} lives"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+{{name}}-core.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

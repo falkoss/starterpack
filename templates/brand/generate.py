@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: {{licence}}
+# SPDX-License-Identifier: MIT
 """Generates the {{name}} brand kit: master SVGs, PNG exports, favicon.ico and the website's head icons.
 
 PROVISIONAL – the placeholder design from falkoss/starterpack until {{name}} has its own: a chamfered frame with a block
@@ -8,7 +8,7 @@ cursor, the name set in the system's monospace font, one accent. Replace the col
 is final (kernoid's brand/generate.py does that with fontTools), so it needs no font where it is shown.
 
 Needs rsvg-convert (Homebrew: librsvg). Run from anywhere:
-    python3 brand/generate.py
+    python3 generate.py
 Edit this file, not the exports.
 """
 import os

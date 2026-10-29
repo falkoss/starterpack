@@ -1,2 +1,8 @@
 .DS_Store
-__pycache__/
+{{#rust_app}}
+/target
+
+# The web app: its packages and its build, which the binary embeds and CI builds.
+/web/node_modules
+/web/dist
+{{/rust_app}}

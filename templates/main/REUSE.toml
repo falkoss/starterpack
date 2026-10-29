@@ -9,7 +9,16 @@ precedence = "aggregate"
 SPDX-FileCopyrightText = "{{publisher}} and the {{name}} contributors"
 
 [[annotations]]
-path = ["**/*.md", "**/.gitignore", "brand/svg/**", "brand/png/**", "brand/web/**"]
+# Generated or JSON files of the Rust core and web app, if there are any (bin/new-project --rust-app).
+path = ["**/*.md", "**/.gitignore", "Cargo.lock", "api/openapi.json", "web/package.json", "web/pnpm-lock.yaml",
+  "web/tsconfig.json", "web/src/lib/api-types.ts"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "{{publisher}} and the {{name}} contributors"
 SPDX-License-Identifier = "{{licence}}"
+
+# Copies of the artwork from {{name}}/brand – kept as they are, under its licence.
+[[annotations]]
+path = ["docs/assets/**", "web/public/favicon.svg"]
+precedence = "override"
+SPDX-FileCopyrightText = "{{publisher}}"
+SPDX-License-Identifier = "CC-BY-ND-4.0"

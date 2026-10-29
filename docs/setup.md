@@ -19,12 +19,12 @@ small project without any of these goes to **falkoss-labs** instead and needs no
 
 - Create `github.com/<name>` (free plan for now; after the founding: business terms of the gUG, **two owners**).
 - Profile: display name `<name>` (lowercase), URL of the main domain, e-mail `support@…`, avatar
-  `<name>/brand/png/social/github-avatar-500.png` (written in step 5).
+  `brand/png/social/github-avatar-500.png` (written in step 5).
 - Verify the domains in the organisation (DNS TXT) once they are registered.
 
 ## 4. Repositories and token [maintainer]
 
-Create, **private** to begin with: `.github`, `website`, `<name>` and, if there is one, `whitepaper`. Empty – no
+Create, **private** to begin with: `.github`, `website`, `brand`, `<name>` and, if there is one, `whitepaper`. Empty – no
 README, licence or .gitignore (the first commit comes from starterpack).
 
 Token – a **fine-grained personal access token** (<https://github.com/settings/personal-access-tokens/new>):
@@ -46,14 +46,19 @@ log or commit it. Each organisation has its own token – never mix them.
 ## 5. Working folder [script]
 
 ```sh
-bin/new-project <name> --tagline "One line in English" [--app] [--eu] [--de] [--whitepaper]
+bin/new-project <name> --tagline "One line in English" [--app] [--eu] [--de] [--whitepaper] [--rust-app]
                        [--licence MIT] [--doc-licence CC-BY-SA-4.0] [--accent "#5AA9E6"] [--port 8014]
+                       [--api-port 8080]
 ```
 
 It writes the working folder next to `falkoss/` with `CLAUDE.md` (German, private), `.claude/launch.json`, the
 repositories with a first signed-off commit and their remotes, and `~/.<name>/developer/agent.env`. The brand kit is
-generated with a provisional design (`<name>/brand/generate.py`) and its web assets are copied into `website/` and the
-profile. It never overwrites: an existing folder stops it.
+generated in `brand/` with a provisional design and its artwork is copied into `website/`, the profile and the main
+repository's `docs/assets/` (and `web/public/`). With `--rust-app` the main repository gets the Rust core, TUI, API
+and web app ([practices.md](practices.md)). It never overwrites: an existing folder stops it.
+
+The CI of every repository calls the shared workflows of starterpack, pinned to the commit of the checkout that wrote
+it – that commit must be on GitHub (`new-project` warns if it is not).
 
 ## 6. First push [maintainer's OK]
 
@@ -74,15 +79,17 @@ git -c credential.helper= -c credential.helper='!f() { echo username=x-access-to
 - `website`: Settings → Pages → Source **GitHub Actions**; custom domain (writes `CNAME`); **Enforce HTTPS** once the
   certificate is there. Then add `canonical`, `og:url`, an absolute `og:image` and `Canonical:` in
   `.well-known/security.txt`.
-- `.dev`: documentation from `<name>/docs/` as soon as the main repository is public (Pages from private repositories
-  needs a paid plan).
+- `<name>`: Settings → Pages → Source **GitHub Actions** (never a branch), custom domain `<name>.dev`, **Enforce
+  HTTPS** – the documentation from `docs/`, as soon as the main repository is public (Pages from private repositories
+  needs a paid plan). With Actions the domain lives in the settings; no `CNAME` file is needed.
 - All other domains: redirect 301 to the main domain.
 - Mail: `support@falkoss.org` is the contact until the project has its own mail (MX, SPF, DKIM, DMARC).
 
 ## 8. Brand [maintainer + script]
 
-Replace the provisional design in `<name>/brand/generate.py` (mark, wordmark, colours – the export part in
-`brandkit.py` stays), run it, copy `brand/web/*` to `website/` and the lockups to `website/assets/` and
+Replace the provisional design in `brand/generate.py` (mark, wordmark, colours – the export part in
+`brandkit.py` stays), run it, and copy the artwork where `brand/README.md` lists it: `brand/web/*` to `website/`,
+the favicons and the lockup to `<name>/docs/assets/` (and `<name>/web/public/`), the lockups to `website/assets/` and
 `.github/profile/assets/`. Set the social preview (`png/social/<name>-social-1280x640.png`) in each repository's
 settings and the avatar in the organisation. Update the colours in the whitepaper template.
 

@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Reusable: the licence check (REUSE) of the calling repository. Projects call it pinned by commit:
+#   uses: falkoss/starterpack/.github/workflows/reuse.yml@<commit>
+# Actions are pinned by commit, with the version as a comment.
+name: REUSE
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  licences:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: fsfe/reuse-action@9a55738c6490d015afe69ad187520395d2b7a1fa # v6.0.0

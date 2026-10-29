@@ -3,12 +3,15 @@
 **The falkOSS starter pack** – what a new project usually starts with when it is set up the
 [falkOSS](https://falkoss.org) way:
 
-- its own GitHub organisation, with `.github`, `website`, the main repository and maybe a `whitepaper`
+- its own GitHub organisation, with `.github`, `website`, `brand`, the main repository and maybe a `whitepaper`
 - a lowercase name that is free – organisation, `.org` and `.dev`, no trademark in the way
 - AGPL-3.0-or-later, an SPDX header in every file, REUSE in CI
 - a DCO sign-off on every commit, no CLA
 - everything included, no telemetry, no tracking, no fonts from elsewhere
-- its own look, made by `brand/generate.py`, and "a falkOSS project" in the footer
+- its own look in its own `brand` repository (artwork CC BY-ND 4.0), and "a falkOSS project" in the footer
+- documentation on `.dev` from the main repository's `docs/`, built with Jekyll and published by GitHub Actions
+- optionally the usual shape of the software: a Rust core with a TUI, an OpenAPI-described API and a Svelte web app
+  (`--rust-app`)
 - a whitepaper typeset with Typst, DRAFT behind every page until it isn't one
 - a private working folder and a token that can push but cannot change settings
 
@@ -26,15 +29,17 @@ templates have the shape the existing projects already have.
 |---|---|
 | [docs/naming.md](docs/naming.md) | how a project gets its name: organisation, domains, trademark, language |
 | [docs/setup.md](docs/setup.md) | every step from the name to the first push – what is scripted, what the maintainer does by hand |
+| [docs/practices.md](docs/practices.md) | the practices every project follows: repositories, licences, stack, docs, CI |
 | [bin/check-name](bin/check-name) | checks a name: GitHub organisation, domains (RDAP/whois), package registries; prints the trademark searches |
 | [bin/new-project](bin/new-project) | writes the working folder with all repositories, the brand kit and the token folder |
-| [templates/](templates/) | what `new-project` fills in – one folder per repository |
+| [templates/](templates/) | what `new-project` fills in – one folder per repository; `rust-app/` is laid over `main/` |
+| [.github/workflows/](.github/workflows/) | the shared workflows projects call, pinned by commit: `reuse.yml`, `dco.yml`, `pages-jekyll.yml` |
 
 ## Quick start
 
 ```sh
 bin/check-name spezado --app                       # is the name free?
-bin/new-project spezado --tagline "Free accounting for everyone" --app --whitepaper
+bin/new-project spezado --tagline "Free accounting for everyone" --app --whitepaper --rust-app
 ```
 
 `new-project` writes next to the falkOSS working folder (default: the parent of `falkoss/`):
@@ -45,7 +50,9 @@ bin/new-project spezado --tagline "Free accounting for everyone" --app --whitepa
   .claude/launch.json        website preview
   .github/                   <name>/.github   – organisation profile
   website/                   <name>/website   – one static page, GitHub Pages
-  <name>/                    <name>/<name>    – the software, its brand kit, CI (REUSE, DCO)
+  brand/                     <name>/brand     – the brand kit: generator (MIT), artwork (CC BY-ND 4.0)
+  <name>/                    <name>/<name>    – the software, docs/ for .dev, CI (REUSE, DCO; with --rust-app
+                                                 crates/, web/, api/, format, lints, tests, cargo deny)
   whitepaper/                <name>/whitepaper – Markdown → Typst → PDF (with --whitepaper)
 ~/.<name>/developer/agent.env   GITHUB_TOKEN= (empty, mode 600 – paste the token there)
 ```

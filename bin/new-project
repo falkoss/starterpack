@@ -2,17 +2,19 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Writes the working folder of a new falkOSS project from templates/ (docs/setup.md, step 5).
 
-    bin/new-project <name> --tagline "One line in English" [--app] [--eu] [--de] [--whitepaper]
+    bin/new-project <name> --tagline "One line in English" [--app] [--eu] [--de] [--whitepaper] [--rust-app]
                     [--licence MIT] [--doc-licence CC-BY-SA-4.0] [--accent "#5AA9E6"] [--port 8014]
-                    [--root DIR] [--no-commit]
+                    [--api-port 8080] [--root DIR] [--no-commit]
 
 Writes <root>/<name>/ (default root: the folder that holds falkoss/) with CLAUDE.md, .claude/launch.json and the
-repositories .github, website, <name> and – with --whitepaper – whitepaper; generates the provisional brand kit and
-copies its web assets; gives every repository `git init -b main`, its remote and a first signed-off commit; and
-creates ~/.<name>/developer/agent.env with an empty GITHUB_TOKEN (mode 600). Never overwrites, never pushes.
+repositories .github, website, brand, <name> and – with --whitepaper – whitepaper; with --rust-app the main repository
+gets the Rust core, TUI, API and web app (templates/rust-app). Generates the provisional brand kit in brand/ and copies
+its artwork to the other repositories; gives every repository `git init -b main`, its remote and a first signed-off
+commit; and creates ~/.<name>/developer/agent.env with an empty GITHUB_TOKEN (mode 600). Never overwrites, never
+pushes. Workflows shared through falkoss/starterpack are pinned to this checkout's commit, which must be pushed.
 
-Templates use {{key}} for values and {{#whitepaper}} … {{/whitepaper}} ({{^whitepaper}} for the opposite) on lines
-of their own; a {{key}} in a file or folder name is replaced too.
+Templates use {{key}} for values and {{#flag}} … {{/flag}} ({{^flag}} for the opposite; flags: whitepaper,
+rust_app) on lines of their own; a {{key}} in a file or folder name is replaced too.
 """
 import argparse, datetime, glob, json, os, re, shutil, subprocess, sys
 
@@ -22,7 +24,7 @@ PUBLISHER = "falkOSS – Falcon Lake Open Source Software gUG (haftungsbeschrän
 LICENCES = ("AGPL-3.0-or-later", "MIT")
 DOC_LICENCES = {"CC-BY-4.0": "CC BY 4.0", "CC-BY-SA-4.0": "CC BY-SA 4.0"}
 # repository folder in the working folder ← template folder
-REPOS = {".github": "dotgithub", "website": "website", "{name}": "main", "whitepaper": "whitepaper"}
+REPOS = {".github": "dotgithub", "website": "website", "brand": "brand", "{name}": "main", "whitepaper": "whitepaper"}
 
 
 # --- colours ---------------------------------------------------------------------------------------------------------
@@ -89,12 +91,16 @@ def copy_tree(src, dst, values, flags):
             shutil.copymode(s, d)
 
 
-def licence(dst, spdx, as_licence_file=False):
+def licence(dst, spdx, as_licence_file=False, holder=None):
     os.makedirs(os.path.join(dst, "LICENSES"), exist_ok=True)
     src = os.path.join(TEMPLATES, "LICENSES", f"{spdx}.txt")
     shutil.copyfile(src, os.path.join(dst, "LICENSES", f"{spdx}.txt"))
     if as_licence_file:
-        shutil.copyfile(src, os.path.join(dst, "LICENSE"))
+        text = open(src, encoding="utf-8").read()
+        if holder:   # MIT names its copyright holder in the text itself
+            text = text.replace("<year> <copyright holders>", holder)
+        with open(os.path.join(dst, "LICENSE"), "w", encoding="utf-8") as out:
+            out.write(text)
 
 
 # --- steps -----------------------------------------------------------------------------------------------------------
@@ -111,21 +117,39 @@ def next_port(root):
     return max(ports) + 1
 
 
-def brand(work, name):
-    main = os.path.join(work, name)
+def brand(work, name, rust_app):
+    """Generates the brand kit in brand/ and copies its artwork where the other repositories show it."""
     if not shutil.which("rsvg-convert"):
         print("  ! rsvg-convert missing (Homebrew: librsvg) – brand kit not generated; run brand/generate.py later")
         return
-    subprocess.run([sys.executable, "-B", os.path.join(main, "brand", "generate.py")], check=True,
+    subprocess.run([sys.executable, "-B", os.path.join(work, "brand", "generate.py")], check=True,
                    stdout=subprocess.DEVNULL)
-    web, svg = os.path.join(main, "brand", "web"), os.path.join(main, "brand", "svg")
+    web, svg = os.path.join(work, "brand", "web"), os.path.join(work, "brand", "svg")
     for f in os.listdir(web):
         shutil.copy(os.path.join(web, f), os.path.join(work, "website", f))
-    for f, to in [(f"{name}-lockup-on-dark.svg", "website/assets"), (f"{name}-mark-on-dark.svg", "website/assets"),
-                  (f"{name}-lockup-on-dark.svg", ".github/profile/assets"),
-                  (f"{name}-lockup-on-light.svg", ".github/profile/assets")]:
+    copies = [(svg, f"{name}-lockup-on-dark.svg", "website/assets"), (svg, f"{name}-mark-on-dark.svg", "website/assets"),
+              (svg, f"{name}-lockup-on-dark.svg", ".github/profile/assets"),
+              (svg, f"{name}-lockup-on-light.svg", ".github/profile/assets"),
+              (svg, f"{name}-lockup-on-dark.svg", f"{name}/docs/assets"),
+              (web, "favicon.svg", f"{name}/docs/assets"), (web, "favicon.ico", f"{name}/docs/assets")]
+    if rust_app:
+        copies.append((web, "favicon.svg", f"{name}/web/public"))
+    for src, f, to in copies:
         os.makedirs(os.path.join(work, to), exist_ok=True)
-        shutil.copy(os.path.join(svg, f), os.path.join(work, to, f))
+        shutil.copy(os.path.join(src, f), os.path.join(work, to, f))
+
+
+def starterpack_rev():
+    """The commit the shared workflows are pinned to: this checkout's HEAD, which GitHub must know."""
+    git = lambda *a: subprocess.run(["git", "-C", STARTERPACK, *a], capture_output=True, text=True)
+    rev = git("rev-parse", "HEAD").stdout.strip()
+    if not rev:
+        raise SystemExit("starterpack is not a git checkout – the shared workflows need a commit to pin")
+    if git("status", "--porcelain", "--", ".github/workflows").stdout.strip():
+        print("  ! .github/workflows has uncommitted changes – the pinned commit does not contain them")
+    if not git("branch", "-r", "--contains", rev).stdout.strip():
+        print(f"  ! starterpack {rev[:7]} is not on a remote branch – push it, or CI cannot find the shared workflows")
+    return rev
 
 
 def git(repo, name, folder, commit):
@@ -158,6 +182,9 @@ def main():
     p.add_argument("--eu", action="store_true", help="EU-specific: .eu is required")
     p.add_argument("--de", action="store_true", help="Germany-specific: .de is required")
     p.add_argument("--whitepaper", action="store_true", help="also the whitepaper repository")
+    p.add_argument("--rust-app", action="store_true",
+                   help="the main repository with the Rust core, TUI, API and web app (templates/rust-app)")
+    p.add_argument("--api-port", type=int, default=8080, help="the port `<name> serve` listens on (default 8080)")
     p.add_argument("--licence", choices=LICENCES, default=LICENCES[0], help="of the main repository")
     p.add_argument("--doc-licence", choices=DOC_LICENCES, default="CC-BY-4.0", help="of the whitepaper text")
     p.add_argument("--accent", default="#5AA9E6", help="the one accent colour of the provisional brand (#RRGGBB)")
@@ -191,10 +218,11 @@ def main():
         required_domains=", ".join(f".{t}" for t in tlds),
         check_flags="".join(f" --{t}" for t in ("app", "eu", "de") if getattr(a, t)),
         port=a.port or next_port(os.path.abspath(a.root)),
+        crate=name.replace("-", "_"), api_port=a.api_port, starterpack_rev=starterpack_rev(),
         night="#0D1117", panel="#12171E", line="#1C232B", paper="#E6EDF3", ink="#14202B",
         accent=accent, accent_dark=accent_dark, note=mix(accent_dark, "#FFFFFF", 0.92),
     )
-    flags = dict(whitepaper=a.whitepaper)
+    flags = dict(whitepaper=a.whitepaper, rust_app=a.rust_app)
 
     print(f"# {name} → {work}")
     copy_tree(os.path.join(TEMPLATES, "workspace"), work, values, flags)
@@ -202,15 +230,23 @@ def main():
     for folder in repos:
         copy_tree(os.path.join(TEMPLATES, REPOS["{name}" if folder == name else folder]),
                   os.path.join(work, folder), values, flags)
+    if a.rust_app:
+        copy_tree(os.path.join(TEMPLATES, "rust-app"), os.path.join(work, name), values, flags)
+    holder = f"{today.year} {PUBLISHER} and the {name} contributors"
     licence(os.path.join(work, "website"), "AGPL-3.0-or-later", as_licence_file=True)
     shutil.rmtree(os.path.join(work, "website", "LICENSES"))   # websites carry only LICENSE, like the others
-    licence(os.path.join(work, name), a.licence, as_licence_file=True)
+    for spdx in ("CC-BY-4.0", "CC-BY-ND-4.0"):
+        licence(os.path.join(work, ".github"), spdx)
+    licence(os.path.join(work, "brand"), "MIT", as_licence_file=True, holder=holder)
+    licence(os.path.join(work, "brand"), "CC-BY-ND-4.0")
+    licence(os.path.join(work, name), a.licence, as_licence_file=True, holder=holder)
+    licence(os.path.join(work, name), "CC-BY-ND-4.0")       # the copies of the brand's artwork
     if a.whitepaper:
         wp = os.path.join(work, "whitepaper")
         for spdx in ("AGPL-3.0-or-later", a.doc_licence, "OFL-1.1"):
             licence(wp, spdx)
         shutil.copytree(os.path.join(TEMPLATES, "fonts"), os.path.join(wp, "template", "fonts"))
-    brand(work, name)
+    brand(work, name, a.rust_app)
     for folder in repos:
         git(os.path.join(work, folder), name, folder, not a.no_commit)
         print(f"  {folder:12} git: main, origin https://github.com/{name}/{folder}.git"
@@ -222,8 +258,10 @@ Next (docs/setup.md):
   - create github.com/{name} and the repositories {', '.join(repos)} – private, empty
   - fine-grained token (Contents, Workflows, Actions: read and write) into ~/.{name}/developer/agent.env
   - push each repository after the maintainer's OK (command in {name}/CLAUDE.md)
-  - Pages for website, domains {values['required_domains']} → {values['main_domain']}
-  - replace the provisional brand in {name}/brand/generate.py""" + ("""
+  - Pages (source: GitHub Actions) for website → {values['main_domain']} and for {name} → {values['docs_domain']};
+    domains {values['required_domains']}
+  - replace the provisional brand in brand/generate.py and copy its artwork again (brand/README.md)""" + ("""
+  - {name}: (cd web && pnpm install), cargo build – see {name}/CONTRIBUTING.md""".format(name=name) if a.rust_app else "") + ("""
   - build the whitepaper: whitepaper/build.sh (pandoc + typst or nix), commit .typ and .pdf""" if a.whitepaper else ""))
 
 

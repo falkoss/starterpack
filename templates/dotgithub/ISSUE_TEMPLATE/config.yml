@@ -1,0 +1,6 @@
+# Security problems never go into a public issue.
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security problem
+    url: https://github.com/{{name}}/.github/blob/main/SECURITY.md
+    about: Privately, through the Security tab or by mail – never in a public issue.

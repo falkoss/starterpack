@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: {{licence}}
+# SPDX-License-Identifier: MIT
 """The export half of a falkOSS brand kit, from falkoss/starterpack – the same set of files for every project.
 
 generate.py draws the project's own marks as SVG strings and hands them to export(), which writes:

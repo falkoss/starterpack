@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Reusable: a sign-off (DCO) on every commit of a pull request. Projects call it pinned by commit, on pull requests:
+#   uses: falkoss/starterpack/.github/workflows/dco.yml@<commit>
+# Actions are pinned by commit, with the version as a comment.
+name: DCO
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  sign-off:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Every commit carries a Signed-off-by line (DCO)
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          missing=$(git rev-list --no-merges "$BASE..$HEAD" | while read -r c; do
+            git log -1 --format=%B "$c" | grep -q '^Signed-off-by: ' || echo "$c"; done)
+          if [ -n "$missing" ]; then echo "Commits without sign-off (git commit -s):"; echo "$missing"; exit 1; fi

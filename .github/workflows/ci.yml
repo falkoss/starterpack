@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# The licence check (REUSE), a sign-off (DCO) on every commit of a pull request, and a smoke test: new-project writes
-# a whole working folder, whose main repository must be REUSE clean too – in _ci/, because the REUSE action runs in
-# Docker and sees only the workspace. Actions are pinned by commit, with the version as a comment.
+# The licence check (REUSE), a sign-off (DCO) on every commit of a pull request – the shared workflows that projects
+# call, run here on starterpack itself – and a smoke test: new-project writes a whole working folder with --rust-app,
+# whose repositories must be REUSE clean, whose documentation must build with Jekyll and whose Rust core and web app
+# must pass the checks their own CI runs. In _ci/, because the REUSE and Jekyll actions run in Docker and see only the
+# workspace. Actions are pinned by commit, with the version as a comment.
 name: CI
 
 on:
@@ -13,12 +15,15 @@ on:
 permissions:
   contents: read
 
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
 jobs:
   licences:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: fsfe/reuse-action@9a55738c6490d015afe69ad187520395d2b7a1fa # v6.0.0
+    uses: ./.github/workflows/reuse.yml
+  sign-off:
+    uses: ./.github/workflows/dco.yml
 
   new-project:
     runs-on: ubuntu-latest
@@ -30,26 +35,50 @@ jobs:
         run: |
           git config --global user.name "starterpack CI"
           git config --global user.email "ci@invalid"
-          bin/new-project packtest --tagline "A project written by CI" --app --whitepaper \
+          bin/new-project packtest --tagline "A project written by CI" --app --whitepaper --rust-app \
             --root _ci --home "$RUNNER_TEMP/home"
           test -f _ci/packtest/website/favicon.ico
+          test -f _ci/packtest/packtest/docs/assets/favicon.ico
+          test -f _ci/packtest/packtest/web/public/favicon.svg
           test "$(stat -c %a "$RUNNER_TEMP/home/.packtest/developer/agent.env")" = 600
       - uses: fsfe/reuse-action@9a55738c6490d015afe69ad187520395d2b7a1fa # v6.0.0
         with:
           args: --root _ci/packtest/packtest lint
-
-  sign-off:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: fsfe/reuse-action@9a55738c6490d015afe69ad187520395d2b7a1fa # v6.0.0
         with:
-          fetch-depth: 0
-      - name: Every commit carries a Signed-off-by line (DCO)
-        env:
-          BASE: ${{ github.event.pull_request.base.sha }}
-          HEAD: ${{ github.event.pull_request.head.sha }}
+          args: --root _ci/packtest/brand lint
+      - uses: fsfe/reuse-action@9a55738c6490d015afe69ad187520395d2b7a1fa # v6.0.0
+        with:
+          args: --root _ci/packtest/.github lint
+      - name: Documentation
+        uses: actions/jekyll-build-pages@44a6e6beabd48582f863aeeb6cb2151cc1716697 # v1.0.13
+        with:
+          source: ./_ci/packtest/packtest/docs
+          destination: ./_ci/site
+      # What the project's own CI does (templates/main/.github/workflows/ci.yml), on the project just written.
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: _ci/packtest/packtest/web/package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+      - name: Web app – install, types up to date, check, build
+        working-directory: _ci/packtest/packtest/web
         run: |
-          missing=$(git rev-list --no-merges "$BASE..$HEAD" | while read -r c; do
-            git log -1 --format=%B "$c" | grep -q '^Signed-off-by: ' || echo "$c"; done)
-          if [ -n "$missing" ]; then echo "Commits without sign-off (git commit -s):"; echo "$missing"; exit 1; fi
+          pnpm install --frozen-lockfile
+          pnpm api
+          git diff --exit-code src/lib/api-types.ts
+          pnpm check
+          pnpm build
+      - name: Rust – format, lints, tests, api/openapi.json up to date
+        working-directory: _ci/packtest/packtest
+        run: |
+          rustup toolchain install
+          cargo fmt --check
+          cargo clippy --locked --all-targets
+          cargo test --locked
+          cargo run --locked -q -p packtest -- openapi > api/openapi.json
+          git diff --exit-code api/openapi.json
+      - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
+        with:
+          manifest-path: _ci/packtest/packtest/Cargo.toml

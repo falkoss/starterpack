@@ -1,21 +1,33 @@
 # Contributing to {{name}}
 
-Thank you for helping. {{name}} is free software and a project of [falkOSS](https://falkoss.org).
+Thank you for helping. The rules for every {{name}} repository – sign-off, licences, everything included, no
+telemetry – are in the [organisation's CONTRIBUTING.md](https://github.com/{{name}}/.github/blob/main/CONTRIBUTING.md).
+This file adds how to work on this one.
+{{#rust_app}}
 
-## How
+## Build and test
 
-1. Open an issue first for anything larger than a fix.
-2. Fork, change, and open a pull request. CI checks licences and sign-offs (and, once there is code, format, lints
-   and tests).
-3. Sign off every commit (`git commit -s`): with it you confirm the
-   [Developer Certificate of Origin](https://developercertificate.org). There is no CLA.
+Rust from `rust-toolchain.toml`, Node 26 and pnpm (the version in `web/package.json`).
+
+```sh
+(cd web && pnpm install && pnpm build)
+cargo fmt --check && cargo clippy --all-targets && cargo test
+cargo run -q -- openapi > api/openapi.json && (cd web && pnpm api)   # after changing the API
+(cd web && pnpm check)
+cargo deny check
+scripts/check-age.py                                                  # after changing Cargo.lock
+```
 
 ## Rules
 
-- **Licence:** {{licence}}, an SPDX header in every source file; files that cannot carry one are listed in
-  `REUSE.toml`.
-- **Everything included:** no feature behind a payment, licence key or unlock.
-- **No telemetry:** only connections that are technically needed or that users start themselves.
-- **Sources:** claims about standards, law or other projects need a source; what is not verified is marked **OPEN**.
-- No externally loaded fonts or scripts in anything web-based.
-- English in code, docs and commits.
+- **One core, many interfaces:** the terminal interface, the API and the command line work through `{{name}}-app`
+  only; the web app and the apps use the API.
+- **Dependencies:** exact versions (`=` in `Cargo.toml`, no `^` in `package.json`), the newest that is at least 14
+  days old – `scripts/check-age.py` for Cargo, `minimumReleaseAge` in `web/pnpm-workspace.yaml` for pnpm; a fix for
+  a security advisory may be younger.
+- **The TUI** can be used with the keyboard alone and with the mouse: a click does what the key does.
+{{/rust_app}}
+{{^rust_app}}
+
+<!-- OPEN: how to build and test. -->
+{{/rust_app}}
