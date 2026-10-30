@@ -34,6 +34,10 @@ cargo run -- serve                       # the API and the web app on http://127
 
 <!-- OPEN: where the name comes from – the same text as on the website, in the profile and the whitepaper
      (starterpack docs/naming.md, "Explaining the name"). -->
+```
+…   → {{name}}
+```
+
 *…* is … for …
 
 ## Principles

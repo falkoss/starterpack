@@ -30,6 +30,10 @@
 
 <!-- OPEN: where the name comes from – the same text as on the website, in the README and the whitepaper
      (starterpack docs/naming.md, "Explaining the name"). -->
+```
+…   → {{name}}
+```
+
 *…* is … for …
 
 ### Repositories
