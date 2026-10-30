@@ -26,6 +26,12 @@
 - **No telemetry** – nothing phones home.
 - **In the open** – issues, plans, reviews and decisions happen in public.
 
+### The name
+
+<!-- OPEN: where the name comes from – the same text as on the website, in the README and the whitepaper
+     (starterpack docs/naming.md, "Explaining the name"). -->
+*…* is … for …
+
 ### Repositories
 
 | Repository | What |

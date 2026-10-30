@@ -59,6 +59,11 @@ section > .wrap > p { color: var(--reed); max-width: 46em; margin: 0 0 24px; }
 .cell h3::before { content: "> "; color: var(--accent); }
 .cell p { margin: 0; color: var(--reed); font-size: 15px; }
 
+/* the name */
+pre.story { font: clamp(15px, 2.4vw, 22px)/1.7 var(--mono); margin: 0 0 18px; color: var(--reed); white-space: pre-wrap; }
+pre.story b { color: var(--accent); font-weight: 700; }
+pre.story i { color: var(--text); font-style: normal; }
+
 /* footer */
 footer { border-top: 1px solid var(--line); padding: 26px 0 44px; color: var(--reed); font: 13px var(--mono); }
 footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }

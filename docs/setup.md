@@ -7,7 +7,8 @@ the maintainer; the agent token cannot change them on purpose.
 ## 1. Name [script + maintainer]
 
 `bin/check-name <name> [--app] [--eu] [--de]`, then the manual checks in [naming.md](naming.md). Buy the required
-domains once the name passes.
+domains once the name passes. Write down where the name comes from – the text goes onto the website, the profile, the
+README and the whitepaper ([naming.md](naming.md#explaining-the-name)).
 
 ## 2. Decision [maintainer]
 
@@ -102,6 +103,7 @@ settings and the avatar in the organisation. Update the colours in the whitepape
 ## 10. Before going public [maintainer]
 
 - Reset each repository's history to one commit (the projects start their public history clean).
-- Check: no personal data, no paths like `/Users/…`, REUSE clean, CI green.
+- Check: no personal data, no paths like `/Users/…`, REUSE clean, CI green; the name is explained on the website,
+  in the profile, the README and the whitepaper, with no OPEN left.
 - Switch visibility: `.github` and `website` first, the main repository with its first release.
 - Trademark: a professional search, then the word mark (classes 9 and 42) – filed by falkOSS.

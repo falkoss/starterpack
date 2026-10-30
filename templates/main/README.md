@@ -30,6 +30,12 @@ cargo run -- serve                       # the API and the web app on http://127
 ```
 {{/rust_app}}
 
+## The name
+
+<!-- OPEN: where the name comes from – the same text as on the website, in the profile and the whitepaper
+     (starterpack docs/naming.md, "Explaining the name"). -->
+*…* is … for …
+
 ## Principles
 
 - **Everything included** – one edition, every feature free; no paid tiers, licence keys or unlocks.

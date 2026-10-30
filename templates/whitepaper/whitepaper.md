@@ -23,7 +23,12 @@ status: Draft
 
 {{name}} is free software under {{licence}}, published by falkOSS – everything included, no telemetry.
 
-## 6. Roadmap
+## 6. The name
+
+<!-- Where the name comes from – the same text as on the website, in the profile and the README
+     (starterpack docs/naming.md, "Explaining the name"). -->
+
+## 7. Roadmap
 
 ## Sources
 
