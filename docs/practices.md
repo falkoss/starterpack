@@ -42,10 +42,26 @@ place, and marked CC BY-ND 4.0 in their `REUSE.toml`. Name and logo are protecte
   from `api/openapi.json` (openapi-typescript, openapi-fetch); the build embedded into the binary (rust-embed) with a
   strict Content-Security-Policy.
 - **Apps:** Flutter where they are cross-platform or mobile, native for macOS or Linux otherwise – in their own MIT
-  repository while app-store distribution is wanted.
+  repository while app-store distribution is wanted; built for the platforms below.
 - **Dependencies:** exact versions, each the newest that is at least 14 days old – `scripts/check-age.py` for Cargo,
   `minimumReleaseAge` for pnpm; a fix for a security advisory may be younger.
 - **i18n:** English source strings; translations next to them.
+
+## Platforms
+
+What apps and binaries are built and released for – fewer targets, shorter builds, smaller downloads (from kernoid's
+apps, 2026-10-31):
+
+| System | Versions | Architectures | On request from the community |
+|---|---|---|---|
+| macOS | 27 and later | Apple silicon (arm64) | – Intel is never built |
+| iOS, iPadOS | 27 and later | arm64 | – |
+| Android | 13 (API 33) and later | arm64 (`arm64-v8a`) | x64 |
+| Windows | 11 and later | x64 | Arm64 |
+| Linux | – | x64, arm64 | other architectures |
+
+“On request” means a target is added once the community asks for it (an issue), not in advance. The Rust toolchain
+(`rust-toolchain.toml`) lists only the targets that are built.
 
 ## Documentation and websites
 
